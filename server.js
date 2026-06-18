@@ -13,6 +13,24 @@ const io = new Server(server, {
 
 app.use(express.static(__dirname + '/public'));
 
+function generateRandomBarriers(count = 50) {
+    const barriers = [];
+    const occupied = new Set(['1,1', '19,19']); // Tank spawn positions
+    
+    while (barriers.length < count) {
+        const x = Math.floor(Math.random() * 20);
+        const y = Math.floor(Math.random() * 20);
+        const key = `${x},${y}`;
+        
+        if (!occupied.has(key)) {
+            barriers.push({x, y});
+            occupied.add(key);
+        }
+    }
+    
+    return barriers;
+}
+
 let gameState = {
     activePlayer: 1,
     points: 0,
@@ -20,12 +38,9 @@ let gameState = {
     tanks: {
         
         1: { x: 1, y: 1, dir: 1, alive: true, hp: 5 }, 
-        2: { x: 8, y: 8, dir: 3, alive: true, hp: 5 }  
+        2: { x: 19, y: 19, dir: 3, alive: true, hp: 5 }  
     },
-    barriers: [
-        {x: 3, y: 3}, {x: 3, y: 4}, {x: 3, y: 5},
-        {x: 6, y: 4}, {x: 6, y: 5}, {x: 6, y: 6}
-    ]
+    barriers: generateRandomBarriers(50)
 };
 
 let players = {}; 
@@ -97,7 +112,8 @@ io.on('connection', (socket) => {
             gameState.points = 0;
             gameState.wheelSpun = false;
             gameState.tanks[1] = { x: 1, y: 1, dir: 1, alive: true, hp: 5 };
-            gameState.tanks[2] = { x: 8, y: 8, dir: 3, alive: true, hp: 5 };
+            gameState.tanks[2] = { x: 19, y: 19, dir: 3, alive: true, hp: 5 };
+            gameState.barriers = generateRandomBarriers(50);
         }
     }); 
 }); 
@@ -126,8 +142,8 @@ function executeQueue(pId, queue) {
         if (t.dir === 2) nextY++; 
         if (t.dir === 3) nextX--; 
         
-        nextX = Math.max(0, Math.min(9, nextX));
-        nextY = Math.max(0, Math.min(9, nextY));
+        nextX = Math.max(0, Math.min(19, nextX));
+        nextY = Math.max(0, Math.min(19, nextY));
 
         let hitBarrier = gameState.barriers.some(b => b.x === nextX && b.y === nextY);
 
@@ -157,7 +173,7 @@ function executeQueue(pId, queue) {
             if (shotDir === 2) bulletY++;
             if (shotDir === 3) bulletX--;
 
-            if (bulletX < 0 || bulletX > 9 || bulletY < 0 || bulletY > 9) {
+            if (bulletX < 0 || bulletX > 19 || bulletY < 0 || bulletY > 19) {
                 running = false;
             }
             else if (gameState.barriers.some(b => b.x === bulletX && b.y === bulletY)) {
@@ -187,8 +203,8 @@ function executeQueue(pId, queue) {
 
             // randoma
             let choice = jumpOptions[Math.floor(Math.random() * 2)];
-            let jumpX = Math.max(0, Math.min(9, enemy.x + choice.dx));
-            let jumpY = Math.max(0, Math.min(9, enemy.y + choice.dy));
+            let jumpX = Math.max(0, Math.min(19, enemy.x + choice.dx));
+            let jumpY = Math.max(0, Math.min(19, enemy.y + choice.dy));
 
             // Validate that jump target is clean of barriers
             let jumpHitBarrier = gameState.barriers.some(b => b.x === jumpX && b.y === jumpY);
