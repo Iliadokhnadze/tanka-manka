@@ -309,8 +309,8 @@
             const gridContainer = document.getElementById('game-grid');
             gridContainer.querySelectorAll('.grid-cell').forEach(c => c.remove()); // Clear dynamic cells only
 
-            for (let y = 0; y < 10; y++) {
-                for (let x = 0; x < 10; x++) {
+            for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 20; x++) {
                     const cell = document.createElement('div');
                     cell.className = 'grid-cell';
                     cell.setAttribute('data-x', x);
@@ -352,7 +352,7 @@
                 if (dir === 2) cy++;
                 if (dir === 3) cx--;
 
-                if (cx < 0 || cx > 9 || cy < 0 || cy > 9) break;
+                if (cx < 0 || cx > 19 || cy < 0 || cy > 19) break;
 
                 // Find matching grid cell div element
                 let cell = gridContainer.querySelector(`[data-x="${cx}"][data-y="${cy}"]`);
