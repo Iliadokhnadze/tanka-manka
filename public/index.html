@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>/// TANKA_MANKA ///</title>
+    <style>
+        #game-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);    
+            gap: 1px;
+            background-color: #1a1a1a; 
+            border: 1px solid #00ff00; 
+            width: 400px; 
+            height: 400px;
+            margin: 20px auto;
+            padding: 4px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .grid-cell {
+            border: 1px solid #0dc20d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            user-select: none;
+            background-color: #0d0d0d;
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+
+        .tank-player1 {
+            color: #00d2ff;
+            text-shadow: 0 0 8px #00d2ff;
+        }
+
+        .tank-player2 {
+            color: #ff3838;
+            text-shadow: 0 0 8px #ff3838;
+        }
+
+        
+        .tank-dead {
+            animation: destroyAnimate 0.8s forwards;
+        }
+
+        @keyframes destroyAnimate {
+            0% { color: #ffffff; text-shadow: 0 0 20px #ffffff; transform: scale(1.2) rotate(0deg); }
+            30% { color: #ffaa00; text-shadow: 0 0 15px #ff3300; transform: scale(1.4) rotate(15deg); background-color: #441100; }
+            100% { color: #333333; text-shadow: none; transform: scale(0.8) rotate(45deg); background-color: #111; content: "⚰️"; }
+        }
+
+        
+        .cell-boom {
+            animation: flashBoom 0.4s ease-out alternate;
+        }
+
+        @keyframes flashBoom {
+            0% { background-color: #ff3300; box-shadow: inset 0 0 20px #ffffff; }
+            100% { background-color: #0d0d0d; }
+        }
+
+        
+        .bullet-overlay {
+            width: 8px;
+            height: 8px;
+            background-color: #ffff00;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #ffff00, 0 0 15px #ff3300;
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .barrier-cell {
+            background-color: #223322 !important;
+            border: 1px solid #00ff33 !important;
+            box-shadow: inset 0 0 8px rgba(0, 255, 51, 0.5);
+            position: relative;
+        }
+
+        .barrier-cell::after {
+            content: "█";
+            font-size: 14px;
+            color: #00aa22;
+            opacity: 0.7;
+        }
+
+        body { 
+            background: #050505; 
+            color: #00ff33; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 30px; 
+            margin: 0;
+        }
+        
+        .terminal-container { 
+            max-width: 500px; 
+            margin: 0 auto; 
+            border: 1px dashed #00ff33; 
+            padding: 20px;
+            box-shadow: 0 0 15px rgba(0, 255, 51, 0.2);
+        }
+
+        h1 {
+            font-size: 18px;
+            text-align: center;
+            margin-top: 0;
+            border-bottom: 1px dashed #00ff33;
+            padding-bottom: 10px;
+        }
+
+        .metric-row {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .hp-container {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+        .hp-label {
+            width: 70px;
+        }
+        .hp-bar-outer {
+            width: 150px;
+            height: 12px;
+            border: 1px solid #00ff33;
+            background: #001100;
+            margin-left: 10px;
+            position: relative;
+        }
+        .hp-bar-inner {
+            height: 100%;
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+        .p1-hp { background-color: #00d2ff; box-shadow: 0 0 8px #00d2ff; }
+        .p2-hp { background-color: #ff3838; box-shadow: 0 0 8px #ff3838; }
+
+        pre { 
+            background: #001100; 
+            padding: 15px; 
+            border: 1px solid #00ff33; 
+            color: #00ff33; 
+            font-family: monospace; 
+            line-height: 1.4;
+        }
+
+        textarea { 
+            width: 100%; 
+            background: #000; 
+            color: #00ff33; 
+            font-family: monospace; 
+            padding: 10px; 
+            box-sizing: border-box; 
+            border: 1px solid #00ff33;
+            margin-top: 5px;
+            outline: none;
+        }
+        
+        button { 
+            background: #002200;
+            color: #00ff33;
+            border: 1px solid #00ff33;
+            padding: 10px; 
+            margin: 8px 0; 
+            width: 100%; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            background: #00ff33;
+            color: #000;
+        }
+        button:disabled {
+            border-color: #003300;
+            color: #003300;
+            background: transparent;
+            cursor: not-allowed;
+        }
+
+        #terminal-log { 
+            background: #000; 
+            color: #00aa22; 
+            padding: 10px; 
+            height: 100px; 
+            overflow-y: auto; 
+            font-family: monospace; 
+            font-size: 12px;
+            border: 1px solid #003300;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="terminal-container">
+        <h1>[/// 1v1_MATRIX_TANK_CORE ///]</h1>
+        
+        <div class="metric-row">@USER_ID: <span id="my-role">&lt;...&gt;</span></div>
+        <div class="metric-row">[!] ACTIVE_P_TURN: P//<span id="active-p">-</span></div>
+        <div class="metric-row">[#] ACTION_POINTS: <span id="ap-left">0</span></div>
+        
+        <div class="hp-container">
+            <span class="hp-label">P_01 HEALTH:</span>
+            <div class="hp-bar-outer"><div id="p1-hp-bar" class="hp-bar-inner p1-hp"></div></div>
+            <span id="p1-hp-text" style="margin-left: 8px;">5/5</span>
+        </div>
+        <div class="hp-container">
+            <span class="hp-label">P_02 HEALTH:</span>
+            <div class="hp-bar-outer"><div id="p2-hp-bar" class="hp-bar-inner p2-hp"></div></div>
+            <span id="p2-hp-text" style="margin-left: 8px;">5/5</span>
+        </div>
+
+        <p style="margin-bottom: 2px; font-size: 12px;">&gt;&gt; TELEMETRY_MATRIX:</p>
+        <pre id="tank-data">[...] awaiting sync link</pre>
+        <div id="game-grid"></div>
+
+        <button id="spin" onclick="sendSpin()">[O] SPIN_WHEEL_INIT</button>
+        
+        <textarea id="code" rows="5" placeholder="// execute_stream:&#10;move(2);&#10;turnRight();&#10;shoot();"></textarea>
+        
+        <button id="run" onclick="sendCode()">[&gt;&gt;] COMPILE_AND_RUN</button>
+
+        <p style="margin: 15px 0 2px 0; font-size: 12px;">&gt;&gt; CONSOLE_OUTPUT:</p>
+        <div id="terminal-log"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        let myRole = null;
+        // Keep a local cached state to detect what action happened (specifically shooting)
+        let lastCachedState = null; 
+        
+        socket.on('assignPlayer', (role) => {
+            myRole = role;
+            document.getElementById('my-role').innerText = role === 'spectator' ? "[SPECTATOR]" : `[PLAYER_0${role}]`;
+        });
+
+        socket.on('stateUpdate', async (state) => {
+            document.getElementById('active-p').innerText = state.activePlayer;
+            document.getElementById('ap-left').innerText = state.points;
+
+            let p1 = state.tanks[1];
+            let p2 = state.tanks[2];
+
+            // Update Telemetry Text
+            const tankDataEl = document.getElementById('tank-data');
+            if (tankDataEl) {
+                tankDataEl.innerText = 
+                    `P_01 :: STATUS:[${p1.alive ? "ALIVE" : "DEAD"}] :: COORDS:[X:${p1.x}, Y:${p1.y}] :: HP:${p1.hp}/5\n` +
+                    `P_02 :: STATUS:[${p2.alive ? "ALIVE" : "DEAD"}] :: COORDS:[X:${p2.x}, Y:${p2.y}] :: HP:${p2.hp}/5`;
+            }
+
+            // Update Bars
+            document.getElementById('p1-hp-bar').style.width = Math.max(0, (p1.hp / 5) * 100) + '%';
+            document.getElementById('p1-hp-text').innerText = `${Math.max(0, p1.hp)}/5`;
+            document.getElementById('p2-hp-bar').style.width = Math.max(0, (p2.hp / 5) * 100) + '%';
+            document.getElementById('p2-hp-text').innerText = `${Math.max(0, p2.hp)}/5`;
+
+            let isMyTurn = (myRole === state.activePlayer);
+            document.getElementById('spin').disabled = !isMyTurn || state.wheelSpun;
+            document.getElementById('run').disabled = !isMyTurn || !state.wheelSpun;
+
+            // Render baseline map configuration first
+            renderGrid(state);
+
+            // ANIMATION PROCESSING: Check if a shoot event occurred by measuring changing AP or HP values
+            if (lastCachedState && state.wheelSpun) {
+                let activeShooterId = lastCachedState.activePlayer;
+                let opponentId = activeShooterId === 1 ? 2 : 1;
+                
+                // If action points decreased, it means an action ran. Check if it was a shoot command.
+                let lastAp = lastCachedState.points;
+                let currentAp = state.points;
+
+                // If AP dropped, or if an engine switch just occurred (currentAp resets/changes turn)
+                if (currentAp < lastAp || (state.activePlayer !== lastCachedState.activePlayer && lastAp === 1)) {
+                    let oldShooterTank = lastCachedState.tanks[activeShooterId];
+                    let oldOpponentTank = lastCachedState.tanks[opponentId];
+                    let currentOpponentTank = state.tanks[opponentId];
+
+                    // Check if HP dropped, OR if a turn switch happened but the log implies a miss/hit occurred.
+                    // To accurately animate paths, we trace the bullet trajectory out from the shooter's old position
+                    if (oldOpponentTank.hp !== currentOpponentTank.hp || currentOpponentTank.x !== oldOpponentTank.x || currentOpponentTank.y !== oldOpponentTank.y) {
+                         // A hit or knockback occurred! Animate bullet trajectory up to old position, then flash boom.
+                         await animateBulletTrajectory(oldShooterTank.x, oldShooterTank.y, oldShooterTank.dir, oldOpponentTank.x, oldOpponentTank.y, true);
+                         triggerBoomFlash(oldOpponentTank.x, oldOpponentTank.y);
+                    }
+                }
+            }
+
+            // Re-render map after internal animations wrap to account for tank position shifting or destruction animations
+            renderGrid(state);
+            lastCachedState = JSON.parse(JSON.stringify(state)); // Deep copy state cache
+        });
+
+        function renderGrid(state) {
+            let p1 = state.tanks[1];
+            let p2 = state.tanks[2];
+            const gridContainer = document.getElementById('game-grid');
+            gridContainer.querySelectorAll('.grid-cell').forEach(c => c.remove()); // Clear dynamic cells only
+
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 10; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.setAttribute('data-x', x);
+                    cell.setAttribute('data-y', y);
+
+                    let isBarrier = state.barriers && state.barriers.some(b => b.x === x && b.y === y);
+
+                    if (isBarrier) {
+                        cell.classList.add('barrier-cell');
+                    } 
+                    else if (p1 && p1.x === x && p1.y === y) {
+                        cell.innerHTML = getTriangleSymbol(p1.dir);
+                        cell.classList.add('tank-player1');
+                        if (!p1.alive) cell.classList.add('tank-dead');
+                    } 
+                    else if (p2 && p2.x === x && p2.y === y) {
+                        cell.innerHTML = getTriangleSymbol(p2.dir);
+                        cell.classList.add('tank-player2');
+                        if (!p2.alive) cell.classList.add('tank-dead');
+                    }
+
+                    gridContainer.appendChild(cell);
+                }
+            }
+        }
+
+        // --- JavaScript Animation Routine ---
+        async function animateBulletTrajectory(startX, startY, dir, targetX, targetY, isHit) {
+            let cx = startX;
+            let cy = startY;
+            let running = true;
+            
+            const gridContainer = document.getElementById('game-grid');
+
+            // Trace bullet step by step across grid tracking cells
+            while (running) {
+                if (dir === 0) cy--;
+                if (dir === 1) cx++;
+                if (dir === 2) cy++;
+                if (dir === 3) cx--;
+
+                if (cx < 0 || cx > 9 || cy < 0 || cy > 9) break;
+
+                // Find matching grid cell div element
+                let cell = gridContainer.querySelector(`[data-x="${cx}"][data-y="${cy}"]`);
+                if (!cell) break;
+
+                // Stop if hitting a barrier element
+                if (cell.classList.contains('barrier-cell')) {
+                    triggerBoomFlash(cx, cy); // Explosion on wall
+                    break;
+                }
+
+                // Append bullet element over tile
+                let bullet = document.createElement('div');
+                bullet.className = 'bullet-overlay';
+                cell.appendChild(bullet);
+
+                // Delay execution to make bullet visibility traceable to human eye
+                await new Promise(resolve => setTimeout(resolve, 60));
+                bullet.remove(); // Clean up bullet behind track
+
+                if (cx === targetX && cy === targetY) {
+                    running = false; // Bullet arrived at enemy tank cell
+                }
+            }
+        }
+
+        function triggerBoomFlash(x, y) {
+            const gridContainer = document.getElementById('game-grid');
+            let cell = gridContainer.querySelector(`[data-x="${x}"][data-y="${y}"]`);
+            if (cell) {
+                cell.classList.add('cell-boom');
+                setTimeout(() => {
+                    cell.classList.remove('cell-boom');
+                }, 400);
+            }
+        }
+
+        function getTriangleSymbol(dir) {
+            if (dir === 0) return '▲';
+            if (dir === 1) return '▶';
+            if (dir === 2) return '▼';
+            if (dir === 3) return '◀';
+            return '▲';
+        }
+
+        socket.on('log', (message) => {
+            let logDiv = document.getElementById('terminal-log');
+            logDiv.innerHTML += `> ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight; 
+        });
+
+        function sendSpin() { socket.emit('spinWheel'); }
+        function sendCode() {
+            let text = document.getElementById('code').value;
+            socket.emit('submitCode', text);
+        }
+   
+        function initEmptyGrid() {
+            const gridContainer = document.getElementById('game-grid');
+            if (gridContainer && gridContainer.children.length === 0) {
+                gridContainer.innerHTML = '';
+                for (let y = 0; y < 10; y++) {
+                    for (let x = 0; x < 10; x++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell';
+                        cell.setAttribute('data-x', x);
+                        cell.setAttribute('data-y', y);
+                        gridContainer.appendChild(cell);
+                    }
+                }
+            }
+        }
+
+        initEmptyGrid(); 
+    </script>
+</body>
+</html>
