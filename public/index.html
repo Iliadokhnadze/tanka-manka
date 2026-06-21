@@ -197,6 +197,95 @@
             border: 1px solid #003300;
             margin-top: 15px;
         }
+
+        .controls-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            gap: 8px;
+            width: fit-content;
+        }
+
+        .arrow-btn {
+            width: 60px;
+            height: 60px;
+            padding: 0;
+            font-size: 24px;
+            background: #002200;
+            color: #00ff33;
+            border: 2px solid #00ff33;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.1s ease;
+        }
+
+        .arrow-btn:hover:not(:disabled) {
+            background: #00ff33;
+            color: #000;
+            box-shadow: 0 0 10px #00ff33;
+        }
+
+        .arrow-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .arrow-btn:disabled {
+            border-color: #003300;
+            color: #003300;
+            background: transparent;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .empty-cell {
+            width: 60px;
+            height: 60px;
+        }
+
+        .shoot-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff6666, #cc0000);
+            border: 3px solid #ff0000;
+            color: #fff;
+            font-size: 32px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s ease;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+        }
+
+        .shoot-btn:hover:not(:disabled) {
+            background: radial-gradient(circle at 30% 30%, #ff8888, #ff0000);
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+
+        .shoot-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .shoot-btn:disabled {
+            background: radial-gradient(circle at 30% 30%, #663333, #330000);
+            border-color: #663333;
+            cursor: not-allowed;
+            opacity: 0.5;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -225,9 +314,23 @@
 
         <button id="spin" onclick="sendSpin()">[O] SPIN_WHEEL_INIT</button>
         
-        <textarea id="code" rows="5" placeholder="// execute_stream:&#10;move(2);&#10;turnRight();&#10;shoot();"></textarea>
+        <div class="controls-container">
+            <div class="button-grid">
+                <div class="empty-cell"></div>
+                <button id="move-btn" class="arrow-btn" onclick="buttonMove()" disabled title="Move Forward">▲</button>
+                <div class="empty-cell"></div>
+                
+                <button id="turnleft-btn" class="arrow-btn" onclick="buttonTurnLeft()" disabled title="Turn Left">◀</button>
+                <div class="empty-cell"></div>
+                <button id="turnright-btn" class="arrow-btn" onclick="buttonTurnRight()" disabled title="Turn Right">▶</button>
+            </div>
+            
+            <button id="shoot-btn" class="shoot-btn" onclick="buttonShoot()" disabled title="SHOOT!">●</button>
+        </div>
         
-        <button id="run" onclick="sendCode()">[&gt;&gt;] COMPILE_AND_RUN</button>
+        <textarea id="code" rows="5" placeholder="// execute_stream:&#10;move(2);&#10;turnRight();&#10;shoot();" style="display:none;"></textarea>
+        
+        <button id="run" onclick="sendCode()" style="display:none;">[&gt;&gt;] COMPILE_AND_RUN</button>
 
         <p style="margin: 15px 0 2px 0; font-size: 12px;">&gt;&gt; CONSOLE_OUTPUT:</p>
         <div id="terminal-log"></div>
@@ -269,6 +372,13 @@
             let isMyTurn = (myRole === state.activePlayer);
             document.getElementById('spin').disabled = !isMyTurn || state.wheelSpun;
             document.getElementById('run').disabled = !isMyTurn || !state.wheelSpun;
+            
+            // Enable/disable movement buttons
+            let canMove = isMyTurn && state.wheelSpun;
+            document.getElementById('move-btn').disabled = !canMove;
+            document.getElementById('turnleft-btn').disabled = !canMove;
+            document.getElementById('turnright-btn').disabled = !canMove;
+            document.getElementById('shoot-btn').disabled = !canMove;
 
             // Render baseline map configuration first
             renderGrid(state);
@@ -408,6 +518,22 @@
         function sendCode() {
             let text = document.getElementById('code').value;
             socket.emit('submitCode', text);
+        }
+
+        function buttonMove() {
+            socket.emit('submitCode', 'move();');
+        }
+
+        function buttonTurnLeft() {
+            socket.emit('submitCode', 'turnLeft();');
+        }
+
+        function buttonTurnRight() {
+            socket.emit('submitCode', 'turnRight();');
+        }
+
+        function buttonShoot() {
+            socket.emit('submitCode', 'shoot();');
         }
    
         function initEmptyGrid() {
