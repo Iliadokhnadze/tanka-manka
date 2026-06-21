@@ -286,6 +286,41 @@
             opacity: 0.5;
             box-shadow: none;
         }
+
+        .queue-display {
+            background: #001100;
+            border: 1px solid #00ff33;
+            padding: 10px;
+            margin: 15px 0;
+            min-height: 40px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #00ff33;
+            border-radius: 3px;
+        }
+
+        .queue-label {
+            font-size: 11px;
+            color: #00aa22;
+            margin-bottom: 5px;
+        }
+
+        .queue-commands {
+            word-wrap: break-word;
+            min-height: 20px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-buttons button {
+            flex: 1;
+            margin: 0;
+            padding: 8px;
+        }
     </style>
 </head>
 <body>
@@ -314,18 +349,28 @@
 
         <button id="spin" onclick="sendSpin()">[O] SPIN_WHEEL_INIT</button>
         
+        <div class="queue-display">
+            <div class="queue-label">[COMMAND_QUEUE]:</div>
+            <div class="queue-commands" id="queue-display">&lt;empty&gt;</div>
+        </div>
+        
         <div class="controls-container">
             <div class="button-grid">
                 <div class="empty-cell"></div>
-                <button id="move-btn" class="arrow-btn" onclick="buttonMove()" disabled title="Move Forward">▲</button>
+                <button id="move-btn" class="arrow-btn" onclick="queueMove()" disabled title="Move Forward">▲</button>
                 <div class="empty-cell"></div>
                 
-                <button id="turnleft-btn" class="arrow-btn" onclick="buttonTurnLeft()" disabled title="Turn Left">◀</button>
+                <button id="turnleft-btn" class="arrow-btn" onclick="queueTurnLeft()" disabled title="Turn Left">◀</button>
                 <div class="empty-cell"></div>
-                <button id="turnright-btn" class="arrow-btn" onclick="buttonTurnRight()" disabled title="Turn Right">▶</button>
+                <button id="turnright-btn" class="arrow-btn" onclick="queueTurnRight()" disabled title="Turn Right">▶</button>
             </div>
             
-            <button id="shoot-btn" class="shoot-btn" onclick="buttonShoot()" disabled title="SHOOT!">●</button>
+            <button id="shoot-btn" class="shoot-btn" onclick="queueShoot()" disabled title="SHOOT!">●</button>
+        </div>
+        
+        <div class="action-buttons">
+            <button onclick="executeQueue()" id="execute-btn">[&gt;&gt;] EXECUTE_QUEUE</button>
+            <button onclick="clearQueue()" id="clear-btn">[X] CLEAR_QUEUE</button>
         </div>
         
         <textarea id="code" rows="5" placeholder="// execute_stream:&#10;move(2);&#10;turnRight();&#10;shoot();" style="display:none;"></textarea>
@@ -340,8 +385,53 @@
     <script>
         const socket = io();
         let myRole = null;
-        // Keep a local cached state to detect what action happened (specifically shooting)
-        let lastCachedState = null; 
+        let lastCachedState = null;
+        let commandQueue = [];
+        
+        function updateQueueDisplay() {
+            const queueDiv = document.getElementById('queue-display');
+            if (commandQueue.length === 0) {
+                queueDiv.innerHTML = '&lt;empty&gt;';
+            } else {
+                queueDiv.innerHTML = commandQueue.join(' → ');
+            }
+        }
+
+        function queueMove() {
+            commandQueue.push('move()');
+            updateQueueDisplay();
+        }
+
+        function queueTurnLeft() {
+            commandQueue.push('turnLeft()');
+            updateQueueDisplay();
+        }
+
+        function queueTurnRight() {
+            commandQueue.push('turnRight()');
+            updateQueueDisplay();
+        }
+
+        function queueShoot() {
+            commandQueue.push('shoot()');
+            updateQueueDisplay();
+        }
+
+        function clearQueue() {
+            commandQueue = [];
+            updateQueueDisplay();
+        }
+
+        function executeQueue() {
+            if (commandQueue.length === 0) {
+                socket.emit('log', 'No commands in queue!');
+                return;
+            }
+            const code = commandQueue.join(';\n') + ';';
+            commandQueue = [];
+            updateQueueDisplay();
+            socket.emit('submitCode', code);
+        }
         
         socket.on('assignPlayer', (role) => {
             myRole = role;
@@ -371,14 +461,17 @@
 
             let isMyTurn = (myRole === state.activePlayer);
             document.getElementById('spin').disabled = !isMyTurn || state.wheelSpun;
-            document.getElementById('run').disabled = !isMyTurn || !state.wheelSpun;
             
-            // Enable/disable movement buttons
-            let canMove = isMyTurn && state.wheelSpun;
-            document.getElementById('move-btn').disabled = !canMove;
-            document.getElementById('turnleft-btn').disabled = !canMove;
-            document.getElementById('turnright-btn').disabled = !canMove;
-            document.getElementById('shoot-btn').disabled = !canMove;
+            // Enable/disable movement buttons - can queue commands after wheel spin
+            let canQueue = isMyTurn && state.wheelSpun;
+            document.getElementById('move-btn').disabled = !canQueue;
+            document.getElementById('turnleft-btn').disabled = !canQueue;
+            document.getElementById('turnright-btn').disabled = !canQueue;
+            document.getElementById('shoot-btn').disabled = !canQueue;
+            
+            // Execute button disabled if queue is empty
+            document.getElementById('execute-btn').disabled = !canQueue || commandQueue.length === 0;
+            document.getElementById('clear-btn').disabled = commandQueue.length === 0;
 
             // Render baseline map configuration first
             renderGrid(state);
@@ -515,26 +608,6 @@
         });
 
         function sendSpin() { socket.emit('spinWheel'); }
-        function sendCode() {
-            let text = document.getElementById('code').value;
-            socket.emit('submitCode', text);
-        }
-
-        function buttonMove() {
-            socket.emit('submitCode', 'move();');
-        }
-
-        function buttonTurnLeft() {
-            socket.emit('submitCode', 'turnLeft();');
-        }
-
-        function buttonTurnRight() {
-            socket.emit('submitCode', 'turnRight();');
-        }
-
-        function buttonShoot() {
-            socket.emit('submitCode', 'shoot();');
-        }
    
         function initEmptyGrid() {
             const gridContainer = document.getElementById('game-grid');
