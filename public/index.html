@@ -395,6 +395,15 @@
             } else {
                 queueDiv.innerHTML = commandQueue.join(' → ');
             }
+            updateButtonStates();
+        }
+
+        function updateButtonStates() {
+            const executeBtn = document.getElementById('execute-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            
+            if (executeBtn) executeBtn.disabled = commandQueue.length === 0;
+            if (clearBtn) clearBtn.disabled = commandQueue.length === 0;
         }
 
         function queueMove() {
